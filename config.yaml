@@ -1,0 +1,49 @@
+# Configuration file for CTR Prediction System
+
+data:
+  # Data source: "simulated" or "avazu"
+  source: "simulated"  # Options: "simulated", "avazu"
+  
+  # Data generation parameters (for simulated data)
+  generation:
+    n_users: 10000
+    n_ads: 1000
+    n_impressions: 100000
+    seed: 42
+  
+  # Avazu dataset parameters
+  avazu:
+    data_dir: "data/raw/avazu"
+    sample_frac: null  # Fraction to sample (null = full dataset, 0.1 = 10%)
+    n_rows: null  # Number of rows to load (null = all, useful for testing)
+  
+  # Data paths
+  paths:
+    raw: "data/raw/impressions.csv"
+    avazu_raw: "data/raw/avazu/"
+    avazu_processed: "data/raw/avazu_processed.csv"
+    processed: "data/processed/"
+    eda: "data/eda/"
+
+# Feature engineering configuration
+features:
+  create_basic: true
+  create_advanced: true
+  apply_selection: true
+  remove_low_variance: true
+  remove_correlated: true
+  select_by_importance: false
+  n_features: null  # Number of features to keep (if select_by_importance=true)
+
+# Model configuration (for later phases)
+model:
+  train_test_split: 0.2
+  validation_split: 0.2
+  random_state: 42
+
+# API configuration (for later phases)
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+
