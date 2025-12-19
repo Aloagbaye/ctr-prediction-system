@@ -201,9 +201,14 @@ class BasicFeatureEngineer:
                 on=['user_id', 'timestamp'],
                 how='left'
             )
-            df['time_since_last_click'] = df['time_since_last_click'].fillna(np.inf)
+            # Use a large finite value instead of np.inf to avoid issues with sklearn
+            # Max time span in seconds (e.g., 1 year = 31536000 seconds)
+            max_time_span = 31536000
+            df['time_since_last_click'] = df['time_since_last_click'].fillna(max_time_span)
         else:
-            df['time_since_last_click'] = np.inf
+            # Use a large finite value instead of np.inf
+            max_time_span = 31536000
+            df['time_since_last_click'] = max_time_span
         
         return df
     

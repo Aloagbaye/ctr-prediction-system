@@ -54,9 +54,24 @@ class FeatureSelector:
         X = df[feature_cols].select_dtypes(include=[np.number])
         y = df[self.target_col] if self.target_col in df.columns else None
         
+        # Handle infinite values (replace with NaN, then fill with large value)
+        # This is needed because VarianceThreshold doesn't accept inf values
+        X_clean = X.replace([np.inf, -np.inf], np.nan)
+        
+        # Fill NaN with a large finite value (max of non-inf values * 2)
+        for col in X_clean.columns:
+            if X_clean[col].isna().any():
+                col_max = X_clean[col].max()
+                if pd.isna(col_max):
+                    # If all values were inf, use 1e6
+                    fill_value = 1e6
+                else:
+                    fill_value = max(abs(col_max) * 2, 1e6)
+                X_clean[col] = X_clean[col].fillna(fill_value)
+        
         # Apply variance threshold
         self.variance_threshold = VarianceThreshold(threshold=threshold)
-        X_selected = self.variance_threshold.fit_transform(X)
+        X_selected = self.variance_threshold.fit_transform(X_clean)
         
         # Get selected feature names
         selected_mask = self.variance_threshold.get_support()
