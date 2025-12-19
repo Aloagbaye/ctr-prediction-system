@@ -222,14 +222,19 @@ By the end of this tutorial, you will be able to:
   - Configure auto-scaling
   - Set up environment variables
   - Configure custom domain (optional)
-  
+
+#### 8.2 Vertex AI & BigQuery Integration
 - **Vertex AI** (for model training):
-  - Upload model artifacts
-  - Set up training pipelines (optional)
+  - Upload model artifacts to Vertex AI Model Registry
+  - Set up training pipelines
+  - Deploy models to Vertex AI Endpoints
+  - Model versioning and management
 
 - **BigQuery** (for data storage):
   - Store historical predictions
-  - Analytics queries
+  - Store training data and features
+  - Analytics queries and dashboards
+  - Integration with Vertex AI for training
 
 #### 8.2 AWS Deployment (Option B)
 - **SageMaker**:

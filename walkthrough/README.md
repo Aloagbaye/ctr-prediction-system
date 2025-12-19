@@ -27,6 +27,20 @@ This directory contains detailed step-by-step tutorials for each phase of the CT
   - Prediction endpoints
   - Input validation
   - Performance optimization
+
+- **[Phase 6.2: Streamlit UI with LLM Explanations](PHASE_6_2.md)** ✅
+  - Interactive Streamlit interface
+  - LLM-powered explanations
+  - Batch predictions
+  - Model comparison
+  - Visualizations
+
+- **[Phase 7: Containerization](PHASE_7.md)** ✅
+  - Dockerfile creation
+  - Multi-stage builds
+  - Docker Compose setup
+  - Container orchestration
+  - Volume mounting
   - Logistic Regression baseline
   - XGBoost model
   - LightGBM model

@@ -224,3 +224,7 @@ models/
 models/*.pkl
 models/*.csv
 !models/.gitkeep
+
+# Docker
+.docker/
+docker-compose.override.yml

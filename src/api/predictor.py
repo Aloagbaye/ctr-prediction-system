@@ -13,6 +13,9 @@ import time
 import logging
 from datetime import datetime
 import sys
+import os
+import tempfile
+import shutil
 
 # Add src to path for feature engineering imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -34,7 +37,7 @@ class ModelPredictor:
         Initialize model predictor
         
         Args:
-            models_dir: Directory containing trained models
+            models_dir: Directory containing trained models (or local path for GCS models)
             default_model: Default model to use ('logistic', 'xgboost', 'lightgbm')
         """
         self.models_dir = Path(models_dir)
@@ -44,6 +47,13 @@ class ModelPredictor:
         self.feature_names = None
         self.model_info = {}
         self.feature_pipeline = None
+        self.gcs_bucket = os.getenv("GCS_BUCKET")
+        self._temp_dir = None
+        
+        # Download models from GCS if bucket is specified
+        if self.gcs_bucket:
+            logger.info(f"GCS bucket specified: {self.gcs_bucket}. Downloading models...")
+            self._download_models_from_gcs()
         
         # Initialize feature engineering pipeline if available
         if FEATURE_ENGINEERING_AVAILABLE:
@@ -57,6 +67,58 @@ class ModelPredictor:
                 logger.info("Feature engineering pipeline initialized")
             except Exception as e:
                 logger.warning(f"Could not initialize feature pipeline: {e}")
+    
+    def _download_models_from_gcs(self):
+        """Download models from Google Cloud Storage"""
+        try:
+            from google.cloud import storage
+            
+            # Create temporary directory for models
+            self._temp_dir = tempfile.mkdtemp(prefix="ctr_models_")
+            self.models_dir = Path(self._temp_dir)
+            logger.info(f"Created temporary directory for models: {self._temp_dir}")
+            
+            # Initialize GCS client
+            client = storage.Client()
+            bucket = client.bucket(self.gcs_bucket)
+            
+            # List and download model files
+            model_files = ['logistic_model.pkl', 'xgboost_model.pkl', 'lightgbm_model.pkl',
+                          'logistic_scaler.pkl', 'feature_names.pkl']
+            
+            downloaded = []
+            for blob_name in model_files:
+                blob = bucket.blob(blob_name)
+                if blob.exists():
+                    local_path = self.models_dir / blob_name
+                    blob.download_to_filename(str(local_path))
+                    downloaded.append(blob_name)
+                    logger.info(f"Downloaded {blob_name} from GCS")
+            
+            if downloaded:
+                logger.info(f"Successfully downloaded {len(downloaded)} model files from GCS")
+            else:
+                logger.warning("No model files found in GCS bucket")
+                
+        except ImportError:
+            logger.error("google-cloud-storage not installed. Install with: pip install google-cloud-storage")
+            raise
+        except Exception as e:
+            logger.error(f"Error downloading models from GCS: {e}")
+            # Fall back to local models_dir if GCS download fails
+            if self._temp_dir and Path(self._temp_dir).exists():
+                shutil.rmtree(self._temp_dir)
+            self.models_dir = Path(os.getenv("MODELS_DIR", "models"))
+            logger.warning(f"Falling back to local models directory: {self.models_dir}")
+    
+    def __del__(self):
+        """Cleanup temporary directory if created"""
+        if self._temp_dir and Path(self._temp_dir).exists():
+            try:
+                shutil.rmtree(self._temp_dir)
+                logger.info(f"Cleaned up temporary directory: {self._temp_dir}")
+            except Exception as e:
+                logger.warning(f"Error cleaning up temp directory: {e}")
         
     def load_model(self, model_name: str) -> bool:
         """

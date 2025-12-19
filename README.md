@@ -9,9 +9,11 @@ A complete end-to-end machine learning system for predicting Click-Through Rate 
 - ✅ **Phase 3**: Baseline Model Development
 - ⏳ Phase 4: Model Optimization
 - ⏳ Phase 5: Model Evaluation
-- ✅ **Phase 6**: API Development (Current)
-- ⏳ Phase 7: Containerization
-- ⏳ Phase 8: Cloud Deployment
+- ✅ **Phase 6**: API Development
+- ✅ **Phase 6.2**: Streamlit UI with LLM Explanations
+- ✅ **Phase 7**: Containerization
+- ✅ **Phase 8**: Cloud Deployment (GCP)
+- ✅ **Phase 8.2**: Vertex AI & BigQuery Integration (Current)
 - ⏳ Phase 9: Online Evaluation & Monitoring
 
 ## 📋 Phase 1: Data Preparation & Exploration
@@ -118,18 +120,38 @@ ctr-prediction-system/
 │   ├── models/
 │   │   ├── trainer.py        # Model training
 │   │   └── evaluator.py      # Model evaluation
-│   └── api/
-│       ├── main.py           # FastAPI application
-│       ├── models.py         # Pydantic request/response models
-│       └── predictor.py      # Model prediction logic
+│   ├── api/
+│   │   ├── main.py           # FastAPI application
+│   │   ├── models.py         # Pydantic request/response models
+│   │   └── predictor.py      # Model prediction logic
+│   └── app/
+│       ├── streamlit_app.py  # Streamlit UI application
+│       └── llm_explainer.py  # LLM explanation generator
 ├── scripts/
 │   ├── generate_data.py     # Simulated data generation script
 │   ├── download_avazu.py    # Avazu dataset downloader
 │   ├── explore_data.py      # EDA script
 │   ├── create_features.py   # Feature engineering script
 │   ├── train_models.py      # Model training script
-│   └── run_api.py           # API server script
-├── models/                  # Trained models (generated)
+│   ├── run_api.py           # API server script
+│   ├── run_streamlit.py     # Streamlit app script
+│   ├── docker_build.sh      # Docker build script (Linux/Mac)
+│   ├── docker_build.ps1    # Docker build script (Windows)
+│   ├── docker_run.sh        # Docker run script (Linux/Mac)
+│   ├── docker_run.ps1       # Docker run script (Windows)
+│   ├── gcp_deploy.sh        # GCP deployment script (Linux/Mac)
+│   ├── gcp_deploy.ps1       # GCP deployment script (Windows)
+│   ├── gcp_cleanup.sh       # GCP cleanup script (Linux/Mac)
+│   ├── gcp_cleanup.ps1      # GCP cleanup script (Windows)
+│   ├── vertex_ai_upload.sh  # Vertex AI model upload (Linux/Mac)
+│   ├── vertex_ai_upload.ps1 # Vertex AI model upload (Windows)
+│   ├── bigquery_setup.sh    # BigQuery setup (Linux/Mac)
+│   └── bigquery_setup.ps1   # BigQuery setup (Windows)
+├── Dockerfile.api           # Dockerfile for API service
+├── Dockerfile.streamlit     # Dockerfile for Streamlit UI
+├── docker-compose.yml      # Docker Compose configuration
+├── .dockerignore           # Docker ignore file
+└── models/                  # Trained models (generated)
 ├── config.yaml              # Configuration file
 ├── requirements.txt         # Python dependencies
 └── README.md
@@ -242,6 +264,113 @@ python scripts/train_models.py \
   - [Phase 2: Feature Engineering](walkthrough/PHASE_2.md) ✅
   - [Phase 3: Baseline Model Development](walkthrough/PHASE_3.md) ✅
   - [Phase 6: API Development](walkthrough/PHASE_6.md) ✅
+  - [Phase 6.2: Streamlit UI with LLM Explanations](walkthrough/PHASE_6_2.md) ✅
+  - [Phase 7: Containerization](walkthrough/PHASE_7.md) ✅
+  - [Phase 8: Cloud Deployment (GCP)](walkthrough/PHASE_8.md) ✅
+  - [Phase 8.2: Vertex AI & BigQuery Integration](walkthrough/PHASE_8_2.md) ✅
+
+## 📋 Phase 8: Cloud Deployment (GCP)
+
+### Prerequisites
+
+1. **GCP Account**: Create account at [cloud.google.com](https://cloud.google.com)
+2. **Install gcloud CLI**: [Installation Guide](https://cloud.google.com/sdk/docs/install)
+3. **Authenticate**:
+   ```bash
+   gcloud auth login
+   gcloud auth configure-docker
+   ```
+
+### Deploy to GCP
+
+**Set Environment Variables:**
+```bash
+# Linux/Mac
+export GCP_PROJECT_ID=your-project-id
+export GCP_REGION=us-central1
+
+# Windows PowerShell
+$env:GCP_PROJECT_ID = "your-project-id"
+$env:GCP_REGION = "us-central1"
+```
+
+**Deploy:**
+```bash
+# Linux/Mac
+chmod +x scripts/gcp_deploy.sh
+./scripts/gcp_deploy.sh
+
+# Windows PowerShell
+.\scripts\gcp_deploy.ps1
+```
+
+**What Gets Deployed:**
+- ✅ Cloud Run API service
+- ✅ Cloud Run Streamlit UI
+- ✅ Cloud Storage bucket (for models)
+- ✅ Artifact Registry (for Docker images)
+
+**All resources are labeled for easy cleanup!**
+
+### Clean Up Resources
+
+```bash
+# Linux/Mac
+chmod +x scripts/gcp_cleanup.sh
+./scripts/gcp_cleanup.sh
+
+# Windows PowerShell
+.\scripts\gcp_cleanup.ps1
+```
+
+This deletes all resources created by the deployment to save costs.
+
+## 📋 Phase 8.2: Vertex AI & BigQuery Integration
+
+### Prerequisites
+
+1. **Enable APIs**:
+   ```bash
+   gcloud services enable aiplatform.googleapis.com
+   gcloud services enable bigquery.googleapis.com
+   ```
+
+### Upload Models to Vertex AI
+
+```bash
+# Linux/Mac
+chmod +x scripts/vertex_ai_upload.sh
+./scripts/vertex_ai_upload.sh
+
+# Windows PowerShell
+.\scripts\vertex_ai_upload.ps1
+```
+
+### Set Up BigQuery
+
+```bash
+# Linux/Mac
+chmod +x scripts/bigquery_setup.sh
+./scripts/bigquery_setup.sh
+
+# Windows PowerShell
+.\scripts\bigquery_setup.ps1
+```
+
+**What Gets Created:**
+- ✅ BigQuery dataset: `ctr_predictions`
+- ✅ Predictions table (partitioned by timestamp)
+- ✅ Training data table (optional)
+
+**API Integration:**
+- Predictions are automatically logged to BigQuery
+- Analytics queries available for model performance tracking
+
+### Access Services
+
+After deployment, you'll get:
+- **API URL**: `https://ctr-prediction-api-<hash>-uc.a.run.app`
+- **Streamlit UI**: `https://ctr-prediction-ui-<hash>-uc.a.run.app`
 
 ## 🛠 Technology Stack
 
@@ -251,7 +380,10 @@ python scripts/train_models.py \
 - **Scikit-learn, XGBoost, LightGBM**: Machine learning
 - **FastAPI**: API framework (Phase 6+)
 - **Docker**: Containerization (Phase 7+)
-- **GCP/AWS**: Cloud deployment (Phase 8+)
+- **GCP Cloud Run**: Serverless container deployment (Phase 8+)
+- **GCP Cloud Storage**: Model artifact storage (Phase 8+)
+- **GCP Vertex AI**: Model registry and training pipelines (Phase 8.2+)
+- **GCP BigQuery**: Data warehouse and analytics (Phase 8.2+)
 
 ## 📝 License
 

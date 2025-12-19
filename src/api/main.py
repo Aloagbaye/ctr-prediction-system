@@ -15,6 +15,7 @@ from datetime import datetime
 import logging
 from typing import Optional
 import time
+import os
 
 from .models import (
     PredictionRequest,
@@ -25,6 +26,7 @@ from .models import (
     ModelInfoResponse
 )
 from .predictor import ModelPredictor
+from .bigquery_logger import BigQueryLogger
 
 # Configure logging
 logging.basicConfig(
@@ -50,7 +52,12 @@ app.add_middleware(
 )
 
 # Initialize model predictor (loads models on startup)
-predictor = ModelPredictor(models_dir="models", default_model="xgboost")
+# Check for GCS bucket or use local models directory
+models_dir = os.getenv("MODELS_DIR", "models")
+predictor = ModelPredictor(models_dir=models_dir, default_model="xgboost")
+
+# Initialize BigQuery logger (optional)
+bigquery_logger = BigQueryLogger()
 
 # Load models on startup
 @app.on_event("startup")
@@ -162,6 +169,12 @@ async def predict_ctr(request: PredictionRequest, model_name: Optional[str] = No
         prediction_time = (time.time() - start_time) * 1000  # Convert to ms
         logger.info(f"Prediction completed in {prediction_time:.2f}ms")
         
+        # Log to BigQuery (async, don't block response)
+        try:
+            bigquery_logger.log_prediction(request_dict, result)
+        except Exception as e:
+            logger.warning(f"Failed to log to BigQuery: {e}")
+        
         return PredictionResponse(**result)
         
     except ValueError as e:
@@ -238,6 +251,12 @@ async def batch_predict(request: BatchPredictionRequest, model_name: Optional[st
         predictions = [
             PredictionResponse(**pred) for pred in result['predictions']
         ]
+        
+        # Log to BigQuery (async, don't block response)
+        try:
+            bigquery_logger.log_batch_predictions(request_dicts, result['predictions'])
+        except Exception as e:
+            logger.warning(f"Failed to log batch to BigQuery: {e}")
         
         return BatchPredictionResponse(
             predictions=predictions,
