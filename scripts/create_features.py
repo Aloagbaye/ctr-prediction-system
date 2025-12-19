@@ -24,6 +24,8 @@ def main():
                        help='Output file path')
     parser.add_argument('--target-col', type=str, default='clicked',
                        help='Name of target column')
+    parser.add_argument('--sample-frac', type=float, default=None,
+                       help='Fraction of data to sample (0.0-1.0, e.g., 0.1 for 10%%) for faster processing. Uses stratified sampling to maintain class distribution.')
     
     # Feature creation options
     parser.add_argument('--no-basic', action='store_true',
@@ -61,10 +63,12 @@ def main():
         create_basic=not args.no_basic,
         create_advanced=not args.no_advanced,
         apply_selection=not args.no_selection,
+        sample_frac=args.sample_frac,
         remove_low_variance=not args.no_remove_variance,
         remove_correlated=not args.no_remove_correlated,
         select_by_importance=args.select_by_importance,
-        n_features=args.n_features
+        n_features=args.n_features,
+        random_state=42
     )
     
     print("\n✓ Feature engineering complete!")

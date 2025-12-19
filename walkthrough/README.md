@@ -16,7 +16,17 @@ This directory contains detailed step-by-step tutorials for each phase of the CT
   - Interaction features
   - Feature selection
 
-- **Phase 3: Baseline Model Development** (Coming Soon)
+- **[Phase 3: Baseline Model Development](PHASE_3.md)** ✅
+  - Logistic Regression baseline
+  - XGBoost model
+  - LightGBM model
+  - Model evaluation and comparison
+
+- **[Phase 6: API Development](PHASE_6.md)** ✅
+  - FastAPI service setup
+  - Prediction endpoints
+  - Input validation
+  - Performance optimization
   - Logistic Regression baseline
   - XGBoost model
   - LightGBM model

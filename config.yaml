@@ -35,11 +35,34 @@ features:
   select_by_importance: false
   n_features: null  # Number of features to keep (if select_by_importance=true)
 
-# Model configuration (for later phases)
+# Model configuration
 model:
   train_test_split: 0.2
   validation_split: 0.2
   random_state: 42
+  models: ["logistic", "xgboost", "lightgbm"]  # Models to train
+  
+  # Model-specific parameters
+  logistic:
+    max_iter: 1000
+    solver: "lbfgs"
+    scale_features: true
+  
+  xgboost:
+    max_depth: 6
+    learning_rate: 0.1
+    n_estimators: 100
+    subsample: 0.8
+    colsample_bytree: 0.8
+    early_stopping_rounds: 10
+  
+  lightgbm:
+    max_depth: 6
+    learning_rate: 0.1
+    n_estimators: 100
+    subsample: 0.8
+    colsample_bytree: 0.8
+    early_stopping_rounds: 10
 
 # API configuration (for later phases)
 api:

@@ -219,3 +219,8 @@ models/
 *.zip
 *.csv
 *.gz
+
+# Model artifacts (keep structure, ignore contents)
+models/*.pkl
+models/*.csv
+!models/.gitkeep

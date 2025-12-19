@@ -155,6 +155,7 @@ def create_features(
     create_basic: bool = True,
     create_advanced: bool = True,
     apply_selection: bool = True,
+    sample_frac: Optional[float] = None,
     **kwargs
 ) -> pd.DataFrame:
     """
@@ -167,6 +168,7 @@ def create_features(
         create_basic: Whether to create basic features
         create_advanced: Whether to create advanced features
         apply_selection: Whether to apply feature selection
+        sample_frac: Fraction of data to sample (0.0-1.0) for faster processing
         **kwargs: Additional arguments for pipeline
         
     Returns:
@@ -180,7 +182,42 @@ def create_features(
         df = pd.read_csv(input_path)
     
     print(f"Loaded data from {input_path}")
-    print(f"Shape: {df.shape}\n")
+    print(f"Original shape: {df.shape}")
+    
+    # Sample data if requested (use stratified sampling to maintain class distribution)
+    if sample_frac is not None:
+        if 0 < sample_frac < 1:
+            original_size = len(df)
+            random_state = kwargs.get('random_state', 42)
+            
+            # Store original CTR for comparison
+            original_ctr = None
+            if target_col in df.columns:
+                original_ctr = df[target_col].mean()
+            
+            # Use stratified sampling if target column exists
+            if target_col in df.columns:
+                from sklearn.model_selection import train_test_split
+                # Use train_test_split for stratified sampling
+                df_sampled, _ = train_test_split(
+                    df,
+                    test_size=1 - sample_frac,
+                    stratify=df[target_col],
+                    random_state=random_state
+                )
+                df = df_sampled
+            else:
+                # Simple random sampling if no target column
+                df = df.sample(frac=sample_frac, random_state=random_state)
+            
+            print(f"Sampled {sample_frac*100:.1f}% of data: {len(df):,} rows (from {original_size:,})")
+            if target_col in df.columns and original_ctr is not None:
+                sampled_ctr = df[target_col].mean()
+                print(f"  CTR maintained: {sampled_ctr:.4f} (original: {original_ctr:.4f})")
+        elif sample_frac <= 0 or sample_frac >= 1:
+            print(f"⚠️  Warning: sample_frac must be between 0 and 1, ignoring...")
+    
+    print(f"Working with shape: {df.shape}\n")
     
     # Create pipeline
     pipeline = FeatureEngineeringPipeline(

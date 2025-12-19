@@ -5,11 +5,11 @@ A complete end-to-end machine learning system for predicting Click-Through Rate 
 ## 🎯 Project Status
 
 - ✅ **Phase 1**: Data Preparation & Exploration
-- ✅ **Phase 2**: Feature Engineering (Current)
-- ⏳ Phase 3: Baseline Model Development
+- ✅ **Phase 2**: Feature Engineering
+- ✅ **Phase 3**: Baseline Model Development
 - ⏳ Phase 4: Model Optimization
 - ⏳ Phase 5: Model Evaluation
-- ⏳ Phase 6: API Development
+- ✅ **Phase 6**: API Development (Current)
 - ⏳ Phase 7: Containerization
 - ⏳ Phase 8: Cloud Deployment
 - ⏳ Phase 9: Online Evaluation & Monitoring
@@ -110,16 +110,26 @@ ctr-prediction-system/
 │   │   ├── generator.py      # Simulated data generation
 │   │   ├── kaggle_loader.py  # Kaggle Avazu data loader
 │   │   └── explore.py        # EDA analysis
-│   └── features/
-│       ├── basic_features.py    # Basic feature engineering
-│       ├── advanced_features.py # Advanced encoding features
-│       ├── feature_selector.py  # Feature selection
-│       └── pipeline.py          # Complete pipeline
+│   ├── features/
+│   │   ├── basic_features.py    # Basic feature engineering
+│   │   ├── advanced_features.py # Advanced encoding features
+│   │   ├── feature_selector.py  # Feature selection
+│   │   └── pipeline.py          # Complete pipeline
+│   ├── models/
+│   │   ├── trainer.py        # Model training
+│   │   └── evaluator.py      # Model evaluation
+│   └── api/
+│       ├── main.py           # FastAPI application
+│       ├── models.py         # Pydantic request/response models
+│       └── predictor.py      # Model prediction logic
 ├── scripts/
 │   ├── generate_data.py     # Simulated data generation script
 │   ├── download_avazu.py    # Avazu dataset downloader
 │   ├── explore_data.py      # EDA script
-│   └── create_features.py   # Feature engineering script
+│   ├── create_features.py   # Feature engineering script
+│   ├── train_models.py      # Model training script
+│   └── run_api.py           # API server script
+├── models/                  # Trained models (generated)
 ├── config.yaml              # Configuration file
 ├── requirements.txt         # Python dependencies
 └── README.md
@@ -168,12 +178,19 @@ python scripts/create_features.py \
   --input data/raw/impressions.csv \
   --output data/processed/features.csv
 
+# Create features with sampling for faster processing (10% of data)
+python scripts/create_features.py \
+  --input data/raw/avazu_processed.parquet \
+  --output data/processed/features.csv \
+  --sample-frac 0.1
+
 # Create features with custom options
 python scripts/create_features.py \
   --input data/raw/impressions.csv \
   --output data/processed/features.csv \
   --select-by-importance \
-  --n-features 50
+  --n-features 50 \
+  --sample-frac 0.1
 ```
 
 ### Feature Types Created
@@ -184,12 +201,47 @@ python scripts/create_features.py \
 - **Encoding**: Frequency encoding, target encoding for high-cardinality features
 - **Interactions**: Device×placement, user×device, hour×placement
 
+## 📋 Phase 3: Baseline Model Development
+
+### Train Models
+
+After creating features (Phase 2), train baseline models:
+
+```bash
+# Train all models (Logistic Regression, XGBoost, LightGBM)
+python scripts/train_models.py \
+  --input data/processed/features.csv \
+  --output-dir models/
+
+# Train specific models
+python scripts/train_models.py --models xgboost lightgbm
+
+# Customize training parameters
+python scripts/train_models.py \
+  --test-size 0.15 \
+  --val-size 0.15
+```
+
+### Models Trained
+
+- **Logistic Regression**: Simple baseline, fast and interpretable
+- **XGBoost**: High performance, handles non-linear patterns
+- **LightGBM**: Fast training, similar performance to XGBoost
+
+### Evaluation Metrics
+
+- **ROC-AUC**: Ability to distinguish between classes
+- **Log Loss**: Probability prediction quality
+- **PR-AUC**: Better for imbalanced data
+
 ## 📚 Documentation
 
 - **[TUTORIAL_PLAN.md](TUTORIAL_PLAN.md)**: Complete tutorial plan covering all phases
 - **[Walkthrough Tutorials](walkthrough/)**: Detailed step-by-step guides for each phase
   - [Phase 1: Data Preparation & Exploration](walkthrough/PHASE_1.md) ✅
   - [Phase 2: Feature Engineering](walkthrough/PHASE_2.md) ✅
+  - [Phase 3: Baseline Model Development](walkthrough/PHASE_3.md) ✅
+  - [Phase 6: API Development](walkthrough/PHASE_6.md) ✅
 
 ## 🛠 Technology Stack
 
