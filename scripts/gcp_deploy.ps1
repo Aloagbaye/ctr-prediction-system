@@ -42,7 +42,12 @@ function Check-Prerequisites {
     
     # Check if PROJECT_ID is set
     if ([string]::IsNullOrEmpty($PROJECT_ID)) {
-        $PROJECT_ID = gcloud config get-value project 2>$null
+        try {
+            $PROJECT_ID = gcloud config get-value project 2>&1 | Out-String
+            $PROJECT_ID = $PROJECT_ID.Trim()
+        } catch {
+            $PROJECT_ID = ""
+        }
         if ([string]::IsNullOrEmpty($PROJECT_ID)) {
             Write-Error "GCP_PROJECT_ID environment variable is not set."
             Write-Info "Please set it: `$env:GCP_PROJECT_ID='your-project-id'"
@@ -73,21 +78,38 @@ function Create-StorageBucket {
     $BUCKET_NAME = "${RESOURCE_PREFIX}-models-${PROJECT_ID}"
     
     # Check if bucket exists
-    $bucketExists = gsutil ls -b "gs://${BUCKET_NAME}" 2>$null
+    $bucketExists = $false
+    try {
+        $null = gsutil ls -b "gs://${BUCKET_NAME}" 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $bucketExists = $true
+        }
+    } catch {
+        $bucketExists = $false
+    }
+    
     if ($bucketExists) {
         Write-Warn "Bucket ${BUCKET_NAME} already exists. Skipping creation."
     } else {
         gsutil mb -p $PROJECT_ID -c STANDARD -l $REGION "gs://${BUCKET_NAME}"
-        gsutil label ch -l "${RESOURCE_LABEL}" "gs://${BUCKET_NAME}"
-        gsutil label ch -l "${RESOURCE_LABEL_DATE}" "gs://${BUCKET_NAME}"
+        # Convert labels from key=value to key:value format for gsutil
+        $gsutilLabel = $RESOURCE_LABEL -replace '=', ':'
+        $gsutilLabelDate = $RESOURCE_LABEL_DATE -replace '=', ':'
+        gsutil label ch -l "${gsutilLabel}" "gs://${BUCKET_NAME}"
+        gsutil label ch -l "${gsutilLabelDate}" "gs://${BUCKET_NAME}"
         Write-Info "Bucket created: gs://${BUCKET_NAME}"
     }
     
     # Upload models if they exist locally
     if ((Test-Path "models") -and (Get-ChildItem "models\*.pkl" -ErrorAction SilentlyContinue)) {
         Write-Info "Uploading models to Cloud Storage..."
-        gsutil -m cp models\*.pkl "gs://${BUCKET_NAME}/" 2>$null
-        Write-Info "Models uploaded to gs://${BUCKET_NAME}/"
+        # Use -q flag for quiet mode and redirect all output
+        $output = gsutil -m -q cp models\*.pkl "gs://${BUCKET_NAME}/" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn "Some files may have failed to upload. Check gsutil output above."
+        } else {
+            Write-Info "Models uploaded to gs://${BUCKET_NAME}/"
+        }
     } else {
         Write-Warn "No local models found. Please upload models manually to gs://${BUCKET_NAME}/"
     }
@@ -101,8 +123,17 @@ function Build-AndPushImages {
     $ARTIFACT_REGISTRY = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${RESOURCE_PREFIX}-repo"
     
     # Create Artifact Registry repository if it doesn't exist
-    $repoExists = gcloud artifacts repositories describe "${RESOURCE_PREFIX}-repo" `
-        --location=$REGION --project=$PROJECT_ID 2>$null
+    $repoExists = $false
+    try {
+        $null = gcloud artifacts repositories describe "${RESOURCE_PREFIX}-repo" `
+            --location=$REGION --project=$PROJECT_ID 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $repoExists = $true
+        }
+    } catch {
+        $repoExists = $false
+    }
+    
     if (-not $repoExists) {
         gcloud artifacts repositories create "${RESOURCE_PREFIX}-repo" `
             --repository-format=docker `
@@ -115,13 +146,24 @@ function Build-AndPushImages {
     gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet | Out-Null
     
     # Build and push API image
-    Write-Info "Building API image..."
+    Write-Info "Building API image... (This may take 10-20 minutes on first build)"
+    Write-Info "Installing Python dependencies can take several minutes..."
     docker build -f Dockerfile.api -t "${ARTIFACT_REGISTRY}/api:latest" .
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to build API image"
+        exit 1
+    }
+    Write-Info "Pushing API image to Artifact Registry..."
     docker push "${ARTIFACT_REGISTRY}/api:latest"
     
     # Build and push Streamlit image
-    Write-Info "Building Streamlit image..."
+    Write-Info "Building Streamlit image... (This may take 10-20 minutes on first build)"
     docker build -f Dockerfile.streamlit -t "${ARTIFACT_REGISTRY}/streamlit:latest" .
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to build Streamlit image"
+        exit 1
+    }
+    Write-Info "Pushing Streamlit image to Artifact Registry..."
     docker push "${ARTIFACT_REGISTRY}/streamlit:latest"
     
     Write-Info "Images pushed to Artifact Registry"

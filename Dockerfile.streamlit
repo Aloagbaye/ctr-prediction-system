@@ -1,7 +1,7 @@
 # Dockerfile for Streamlit UI
 # Multi-stage build for optimization
 
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set working directory
 WORKDIR /app

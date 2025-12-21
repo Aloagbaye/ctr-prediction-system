@@ -110,6 +110,8 @@ Each tutorial includes:
 - [Main Tutorial Plan](../TUTORIAL_PLAN.md) - High-level overview
 - [Project README](../README.md) - Project setup and quick start
 - [Source Code](../src/) - Implementation details
+- [GCP gcloud Commands Tutorial](GCP_COMMANDS_TUTORIAL.md) - Reference guide for GCP CLI commands
+- [PowerShell Tutorial](POWERSHELL_TUTORIAL.md) - Comprehensive PowerShell scripting guide
 
 ---
 
