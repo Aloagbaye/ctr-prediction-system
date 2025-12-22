@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/aloag/personal-study/ctr-prediction-system/mlruns/157469376961024907/e83ac661f3bc44bda74c5ec2da191fbd/artifacts
+end_time: 1766367483256
+entry_point_name: ''
+experiment_id: '157469376961024907'
+lifecycle_stage: active
+run_id: e83ac661f3bc44bda74c5ec2da191fbd
+run_name: lightgbm_20251221_203635
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1766367395555
+status: 3
+tags: []
+user_id: aloag

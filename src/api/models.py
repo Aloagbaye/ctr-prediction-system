@@ -95,3 +95,41 @@ class ModelInfoResponse(BaseModel):
     loaded: bool = Field(..., description="Whether model is loaded")
     load_time: Optional[float] = Field(None, description="Model load time in seconds")
 
+
+# A/B Testing Models
+class ABTestCreateRequest(BaseModel):
+    """Request to create an A/B test"""
+    test_id: str = Field(..., description="Unique test identifier")
+    model_a: str = Field(..., description="Control model name")
+    model_b: str = Field(..., description="Variant model name")
+    traffic_split: float = Field(0.5, ge=0.0, le=1.0, description="Percentage of traffic to model_b")
+    duration_hours: Optional[int] = Field(None, description="Test duration in hours (None for indefinite)")
+    description: str = Field("", description="Test description")
+
+
+class ABTestResponse(BaseModel):
+    """A/B test response"""
+    test_id: str
+    model_a: str
+    model_b: str
+    traffic_split: float
+    start_time: str
+    end_time: Optional[str]
+    enabled: bool
+    description: str
+
+
+class ABTestStatsResponse(BaseModel):
+    """A/B test statistics response"""
+    test_id: str
+    config: dict
+    model_a_stats: Optional[dict]
+    model_b_stats: Optional[dict]
+    comparison: Optional[dict]
+
+
+class ABTestPredictionResponse(PredictionResponse):
+    """Prediction response with A/B test information"""
+    variant: str = Field(..., description="A/B test variant: A or B")
+    test_id: Optional[str] = Field(None, description="A/B test identifier if applicable")
+

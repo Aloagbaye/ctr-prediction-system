@@ -1,0 +1,30 @@
+digest: '89021217'
+name: dataset
+profile: '{"num_rows": 186552, "num_elements": 5783112}'
+schema: '{"mlflow_colspec": [{"type": "long", "name": "ad_id", "required": true},
+  {"type": "double", "name": "impressions_device_device_target_enc", "required": true},
+  {"type": "double", "name": "user_ctr_overall", "required": true}, {"type": "double",
+  "name": "time_since_last_click", "required": true}, {"type": "double", "name": "impressions_ad_id_ad_target_enc",
+  "required": true}, {"type": "double", "name": "impressions_user_id_user_target_enc",
+  "required": true}, {"type": "double", "name": "user_id_target_enc", "required":
+  true}, {"type": "long", "name": "user_activity_level", "required": true}, {"type":
+  "long", "name": "impressions_user_id_user", "required": true}, {"type": "double",
+  "name": "ctr_ad_id_ad", "required": true}, {"type": "long", "name": "impressions_user_id_user_freq",
+  "required": true}, {"type": "double", "name": "site_id_target_enc", "required":
+  true}, {"type": "long", "name": "user_activity_level_freq", "required": true}, {"type":
+  "double", "name": "ctr_user_id_user", "required": true}, {"type": "long", "name":
+  "C21", "required": true}, {"type": "long", "name": "C14", "required": true}, {"type":
+  "long", "name": "C19", "required": true}, {"type": "long", "name": "ad_impression_count",
+  "required": true}, {"type": "long", "name": "site_id_hash_0", "required": true},
+  {"type": "long", "name": "C17_freq", "required": true}, {"type": "long", "name":
+  "impressions_device_device", "required": true}, {"type": "long", "name": "C16",
+  "required": true}, {"type": "long", "name": "impressions_user_id_user_hash_0", "required":
+  true}, {"type": "long", "name": "device_id_freq", "required": true}, {"type": "long",
+  "name": "ad_id_freq", "required": true}, {"type": "long", "name": "site_domain_hash_1",
+  "required": true}, {"type": "long", "name": "C18", "required": true}, {"type": "long",
+  "name": "C20", "required": true}, {"type": "long", "name": "user_id_hash_1", "required":
+  true}, {"type": "long", "name": "impressions_ad_id_ad", "required": true}, {"type":
+  "double", "name": "time_since_last_impression", "required": true}]}'
+source: '{"tags": {"mlflow.user": "aloag", "mlflow.source.name": "scripts/train_models.py",
+  "mlflow.source.type": "LOCAL", "mlflow.source.git.commit": "3d865ad45f721c941665adb81dfcdf4a9c1c124e"}}'
+source_type: code

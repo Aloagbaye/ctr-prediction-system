@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/aloag/personal-study/ctr-prediction-system/mlruns/370447191934265621/0dbc696aad6e45c385e5976c120c0418/artifacts
+end_time: 1766366993564
+entry_point_name: ''
+experiment_id: '370447191934265621'
+lifecycle_stage: active
+run_id: 0dbc696aad6e45c385e5976c120c0418
+run_name: logistic_20251221_202920
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1766366960839
+status: 3
+tags: []
+user_id: aloag

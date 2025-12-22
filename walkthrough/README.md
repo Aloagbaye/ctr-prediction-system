@@ -71,10 +71,19 @@ This directory contains detailed step-by-step tutorials for each phase of the CT
   - AWS SageMaker deployment
   - Monitoring setup
 
-- **Phase 9: Online Evaluation & Monitoring** (Coming Soon)
-  - A/B testing
-  - Real-time monitoring
-  - Performance tracking
+- **[Phase 9.1: A/B Testing Setup](PHASE_9_1.md)** ✅
+  - Deploy multiple model versions
+  - Traffic splitting
+  - Performance comparison
+- **[Phase 9.2: Real-time Monitoring](PHASE_9_2.md)** ✅
+  - Prediction latency tracking
+  - Model performance drift detection
+  - Error rate monitoring
+  - Request volume tracking with MLflow
+- **[A/B Testing Tutorial](AB_TESTING_TUTORIAL.md)** ✅
+  - Comprehensive guide to A/B testing concepts
+  - Statistical foundations
+  - Best practices and real-world examples
 
 ## 🎯 How to Use These Tutorials
 
@@ -112,6 +121,8 @@ Each tutorial includes:
 - [Source Code](../src/) - Implementation details
 - [GCP gcloud Commands Tutorial](GCP_COMMANDS_TUTORIAL.md) - Reference guide for GCP CLI commands
 - [PowerShell Tutorial](POWERSHELL_TUTORIAL.md) - Comprehensive PowerShell scripting guide
+- **[A/B Testing Tutorial](AB_TESTING_TUTORIAL.md)** - Comprehensive guide to A/B testing concepts, statistics, importance, and best practices
+- **[MLflow Tutorial](MLFLOW_TUTORIAL.md)** - Complete guide to MLflow experiment tracking, model management, and integration
 
 ---
 

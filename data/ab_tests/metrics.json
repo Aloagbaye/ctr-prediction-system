@@ -1,0 +1,54 @@
+{
+  "test_logistic_vs_xgboost_1766367832": {
+    "logistic": {
+      "test_id": "test_logistic_vs_xgboost_1766367832",
+      "model_name": "logistic",
+      "total_requests": 45,
+      "total_predictions": 45,
+      "avg_prediction_time_ms": 52.32160886128744,
+      "total_prediction_time_ms": 2354.4723987579346,
+      "min_prediction_time_ms": 17.624855041503906,
+      "max_prediction_time_ms": 259.3975067138672,
+      "error_count": 0,
+      "last_updated": "2025-12-21T20:47:23.986332"
+    },
+    "xgboost": {
+      "test_id": "test_logistic_vs_xgboost_1766367832",
+      "model_name": "xgboost",
+      "total_requests": 55,
+      "total_predictions": 55,
+      "avg_prediction_time_ms": 46.39187292619185,
+      "total_prediction_time_ms": 2551.5530109405518,
+      "min_prediction_time_ms": 16.66569709777832,
+      "max_prediction_time_ms": 87.34512329101562,
+      "error_count": 0,
+      "last_updated": "2025-12-21T20:47:26.072820"
+    }
+  },
+  "test_logistic_vs_xgboost_1766369032": {
+    "logistic": {
+      "test_id": "test_logistic_vs_xgboost_1766369032",
+      "model_name": "logistic",
+      "total_requests": 50,
+      "total_predictions": 50,
+      "avg_prediction_time_ms": 279.98212814331055,
+      "total_prediction_time_ms": 13999.106407165527,
+      "min_prediction_time_ms": 33.37502479553223,
+      "max_prediction_time_ms": 1988.673448562622,
+      "error_count": 0,
+      "last_updated": "2025-12-21T21:07:58.754556"
+    },
+    "xgboost": {
+      "test_id": "test_logistic_vs_xgboost_1766369032",
+      "model_name": "xgboost",
+      "total_requests": 50,
+      "total_predictions": 50,
+      "avg_prediction_time_ms": 287.62431621551514,
+      "total_prediction_time_ms": 14381.215810775757,
+      "min_prediction_time_ms": 39.34812545776367,
+      "max_prediction_time_ms": 1746.722936630249,
+      "error_count": 0,
+      "last_updated": "2025-12-21T21:07:56.656753"
+    }
+  }
+}

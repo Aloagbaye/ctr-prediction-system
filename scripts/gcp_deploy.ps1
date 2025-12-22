@@ -1,281 +1,374 @@
-# PowerShell script for GCP Deployment
-# Creates all resources with labels for easy cleanup
-
-$ErrorActionPreference = "Stop"
+# PowerShell script for GCP Deployment - SPLATTING VERSION
+$ErrorActionPreference = "Continue"
+$ProgressPreference = 'SilentlyContinue'
 
 # Configuration
 $PROJECT_ID = if ($env:GCP_PROJECT_ID) { $env:GCP_PROJECT_ID } else { "" }
 $REGION = if ($env:GCP_REGION) { $env:GCP_REGION } else { "us-central1" }
 $RESOURCE_PREFIX = "ctr-prediction"
-$RESOURCE_LABEL = "managed-by=ctr-prediction-deployment"
-$RESOURCE_LABEL_DATE = "deployment-date=$(Get-Date -Format 'yyyyMMdd')"
 
-function Write-Info {
-    param([string]$Message)
-    Write-Host "[INFO] $Message" -ForegroundColor Green
+function Log { 
+    param([string]$msg) 
+    Write-Host "[INFO] $msg" 
 }
 
-function Write-Warn {
-    param([string]$Message)
-    Write-Host "[WARN] $Message" -ForegroundColor Yellow
+function Log-Error { 
+    param([string]$msg) 
+    Write-Host "[ERROR] $msg" -ForegroundColor Red
 }
 
-function Write-Error {
-    param([string]$Message)
-    Write-Host "[ERROR] $Message" -ForegroundColor Red
+function Log-Warn { 
+    param([string]$msg) 
+    Write-Host "[WARN] $msg" -ForegroundColor Yellow
 }
 
 function Check-Prerequisites {
-    Write-Info "Checking prerequisites..."
+    Log "Checking prerequisites..."
     
-    # Check if gcloud is installed
     if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) {
-        Write-Error "gcloud CLI is not installed. Please install it from https://cloud.google.com/sdk/docs/install"
+        Log-Error "gcloud CLI not installed"
         exit 1
     }
     
-    # Check if Docker is installed
-    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-        Write-Error "Docker is not installed. Please install it from https://docs.docker.com/get-docker/"
-        exit 1
-    }
-    
-    # Check if PROJECT_ID is set
     if ([string]::IsNullOrEmpty($PROJECT_ID)) {
-        try {
-            $PROJECT_ID = gcloud config get-value project 2>&1 | Out-String
-            $PROJECT_ID = $PROJECT_ID.Trim()
-        } catch {
-            $PROJECT_ID = ""
-        }
-        if ([string]::IsNullOrEmpty($PROJECT_ID)) {
-            Write-Error "GCP_PROJECT_ID environment variable is not set."
-            Write-Info "Please set it: `$env:GCP_PROJECT_ID='your-project-id'"
-            Write-Info "Or run: gcloud config set project YOUR_PROJECT_ID"
+        $script:PROJECT_ID = (gcloud config get-value project 2>&1).Trim()
+        if ([string]::IsNullOrEmpty($script:PROJECT_ID)) {
+            Log-Error "GCP_PROJECT_ID not set"
             exit 1
         }
-        Write-Info "Using project from gcloud config: $PROJECT_ID"
     }
     
-    # Set the project
     gcloud config set project $PROJECT_ID | Out-Null
+    gcloud services enable run.googleapis.com cloudbuild.googleapis.com storage-component.googleapis.com artifactregistry.googleapis.com --project=$PROJECT_ID | Out-Null
     
-    # Enable required APIs
-    Write-Info "Enabling required GCP APIs..."
-    gcloud services enable `
-        run.googleapis.com `
-        cloudbuild.googleapis.com `
-        storage-component.googleapis.com `
-        artifactregistry.googleapis.com `
-        --project=$PROJECT_ID | Out-Null
-    
-    Write-Info "Prerequisites check complete!"
+    Log "Prerequisites OK"
 }
 
 function Create-StorageBucket {
-    Write-Info "Creating Cloud Storage bucket for models..."
-    
+    Log "Creating storage bucket..."
     $BUCKET_NAME = "${RESOURCE_PREFIX}-models-${PROJECT_ID}"
     
-    # Check if bucket exists
-    $bucketExists = $false
     try {
-        $null = gsutil ls -b "gs://${BUCKET_NAME}" 2>&1 | Out-Null
+        gsutil ls -b "gs://${BUCKET_NAME}" 2>&1 | Out-Null
         if ($LASTEXITCODE -eq 0) {
-            $bucketExists = $true
+            Log "Bucket exists: $BUCKET_NAME"
+            return $BUCKET_NAME
         }
-    } catch {
-        $bucketExists = $false
-    }
+    } catch { }
     
-    if ($bucketExists) {
-        Write-Warn "Bucket ${BUCKET_NAME} already exists. Skipping creation."
-    } else {
-        gsutil mb -p $PROJECT_ID -c STANDARD -l $REGION "gs://${BUCKET_NAME}"
-        # Convert labels from key=value to key:value format for gsutil
-        $gsutilLabel = $RESOURCE_LABEL -replace '=', ':'
-        $gsutilLabelDate = $RESOURCE_LABEL_DATE -replace '=', ':'
-        gsutil label ch -l "${gsutilLabel}" "gs://${BUCKET_NAME}"
-        gsutil label ch -l "${gsutilLabelDate}" "gs://${BUCKET_NAME}"
-        Write-Info "Bucket created: gs://${BUCKET_NAME}"
-    }
-    
-    # Upload models if they exist locally
-    if ((Test-Path "models") -and (Get-ChildItem "models\*.pkl" -ErrorAction SilentlyContinue)) {
-        Write-Info "Uploading models to Cloud Storage..."
-        # Use -q flag for quiet mode and redirect all output
-        $output = gsutil -m -q cp models\*.pkl "gs://${BUCKET_NAME}/" 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warn "Some files may have failed to upload. Check gsutil output above."
-        } else {
-            Write-Info "Models uploaded to gs://${BUCKET_NAME}/"
-        }
-    } else {
-        Write-Warn "No local models found. Please upload models manually to gs://${BUCKET_NAME}/"
-    }
+    gsutil mb -p $PROJECT_ID -c STANDARD -l $REGION "gs://${BUCKET_NAME}"
+    Log "Bucket created: $BUCKET_NAME"
     
     return $BUCKET_NAME
 }
 
 function Build-AndPushImages {
-    Write-Info "Building and pushing Docker images to Artifact Registry..."
-    
+    Log "Building images..."
     $ARTIFACT_REGISTRY = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${RESOURCE_PREFIX}-repo"
     
-    # Create Artifact Registry repository if it doesn't exist
-    $repoExists = $false
     try {
-        $null = gcloud artifacts repositories describe "${RESOURCE_PREFIX}-repo" `
-            --location=$REGION --project=$PROJECT_ID 2>&1 | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            $repoExists = $true
-        }
+        gcloud artifacts repositories describe "${RESOURCE_PREFIX}-repo" --location=$REGION --project=$PROJECT_ID 2>&1 | Out-Null
     } catch {
-        $repoExists = $false
+        gcloud artifacts repositories create "${RESOURCE_PREFIX}-repo" --repository-format=docker --location=$REGION --project=$PROJECT_ID
     }
     
-    if (-not $repoExists) {
-        gcloud artifacts repositories create "${RESOURCE_PREFIX}-repo" `
-            --repository-format=docker `
-            --location=$REGION `
-            --project=$PROJECT_ID `
-            --labels="${RESOURCE_LABEL},${RESOURCE_LABEL_DATE}"
-    }
-    
-    # Configure Docker to use gcloud as credential helper
     gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet | Out-Null
     
-    # Build and push API image
-    Write-Info "Building API image... (This may take 10-20 minutes on first build)"
-    Write-Info "Installing Python dependencies can take several minutes..."
+    Log "Building API image..."
     docker build -f Dockerfile.api -t "${ARTIFACT_REGISTRY}/api:latest" .
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to build API image"
-        exit 1
+    if ($LASTEXITCODE -ne 0) { 
+        Log-Error "Docker build failed for API image"
+        exit 1 
     }
-    Write-Info "Pushing API image to Artifact Registry..."
+    Log "Pushing API image..."
     docker push "${ARTIFACT_REGISTRY}/api:latest"
-    
-    # Build and push Streamlit image
-    Write-Info "Building Streamlit image... (This may take 10-20 minutes on first build)"
-    docker build -f Dockerfile.streamlit -t "${ARTIFACT_REGISTRY}/streamlit:latest" .
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to build Streamlit image"
-        exit 1
+    if ($LASTEXITCODE -ne 0) { 
+        Log-Error "Docker push failed for API image"
+        exit 1 
     }
-    Write-Info "Pushing Streamlit image to Artifact Registry..."
-    docker push "${ARTIFACT_REGISTRY}/streamlit:latest"
     
-    Write-Info "Images pushed to Artifact Registry"
+    Log "Building Streamlit image..."
+    docker build -f Dockerfile.streamlit -t "${ARTIFACT_REGISTRY}/streamlit:latest" .
+    if ($LASTEXITCODE -ne 0) { 
+        Log-Error "Docker build failed for Streamlit image"
+        exit 1 
+    }
+    Log "Pushing Streamlit image..."
+    docker push "${ARTIFACT_REGISTRY}/streamlit:latest"
+    if ($LASTEXITCODE -ne 0) { 
+        Log-Error "Docker push failed for Streamlit image"
+        exit 1 
+    }
+    
     return $ARTIFACT_REGISTRY
 }
 
 function Deploy-ApiService {
-    param(
-        [string]$ArtifactRegistry,
-        [string]$BucketName
-    )
+    param([string]$ArtifactRegistry, [string]$BucketName)
     
-    Write-Info "Deploying API service to Cloud Run..."
+    Log "Deploying API service..."
     
     $SERVICE_NAME = "${RESOURCE_PREFIX}-api"
     $IMAGE = "${ArtifactRegistry}/api:latest"
     
-    gcloud run deploy $SERVICE_NAME `
-        --image=$IMAGE `
-        --platform=managed `
-        --region=$REGION `
-        --project=$PROJECT_ID `
-        --allow-unauthenticated `
-        --memory=2Gi `
-        --cpu=2 `
-        --timeout=300 `
-        --max-instances=10 `
-        --min-instances=0 `
-        --set-env-vars="MODELS_DIR=/tmp/models,GCP_PROJECT_ID=${PROJECT_ID},GCS_BUCKET=${BucketName}" `
-        --labels="${RESOURCE_LABEL},${RESOURCE_LABEL_DATE}" `
-        --quiet | Out-Null
+    Log "Service: $SERVICE_NAME"
+    Log "Image: $IMAGE"
     
-    # Get the service URL
-    $API_URL = gcloud run services describe $SERVICE_NAME `
-        --region=$REGION `
-        --project=$PROJECT_ID `
-        --format="value(status.url)"
+    # Create env vars file in YAML format
+    $envFile = [System.IO.Path]::GetTempFileName() + ".yaml"
+    $envContent = @"
+MODELS_DIR: /tmp/models
+GCP_PROJECT_ID: $PROJECT_ID
+GCS_BUCKET: $BucketName
+"@
+    [System.IO.File]::WriteAllText($envFile, $envContent, [System.Text.Encoding]::UTF8)
     
-    Write-Info "API service deployed: $API_URL"
+    Log "Deploying service (this may take 2-5 minutes)..."
+    
+    # Use argument array instead of splatting (more compatible with external commands)
+    $args = @(
+        "run", "deploy", $SERVICE_NAME,
+        "--image=$IMAGE",
+        "--platform=managed",
+        "--region=$REGION",
+        "--project=$PROJECT_ID",
+        "--allow-unauthenticated",
+        "--memory=2Gi",
+        "--cpu=2",
+        "--timeout=300",
+        "--max-instances=10",
+        "--min-instances=0",
+        "--env-vars-file=$envFile"
+    )
+    
+    & gcloud $args
+    
+    $deployExitCode = $LASTEXITCODE
+    Remove-Item $envFile -ErrorAction SilentlyContinue
+    
+    if ($deployExitCode -ne 0) {
+        Log-Error "API deployment failed with exit code: $deployExitCode"
+        exit 1
+    }
+    
+    Log "Deployment completed successfully!"
+    
+    Log "Retrieving API service URL..."
+    $API_URL = gcloud run services describe $SERVICE_NAME --region=$REGION --project=$PROJECT_ID --format="value(status.url)" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Log-Warn "Could not retrieve API URL"
+        $API_URL = ""
+    } else {
+        $API_URL = $API_URL.Trim()
+        if ([string]::IsNullOrEmpty($API_URL)) {
+            Log-Warn "API URL is empty"
+        } else {
+            Log "API deployed: $API_URL"
+        }
+    }
     return $API_URL
 }
 
 function Deploy-StreamlitService {
-    param(
-        [string]$ArtifactRegistry,
-        [string]$ApiUrl
-    )
+    param([string]$ArtifactRegistry, [string]$ApiUrl)
     
-    Write-Info "Deploying Streamlit UI to Cloud Run..."
+    Log "Deploying Streamlit UI..."
     
     $SERVICE_NAME = "${RESOURCE_PREFIX}-ui"
     $IMAGE = "${ArtifactRegistry}/streamlit:latest"
     
-    gcloud run deploy $SERVICE_NAME `
-        --image=$IMAGE `
-        --platform=managed `
-        --region=$REGION `
-        --project=$PROJECT_ID `
-        --allow-unauthenticated `
-        --memory=1Gi `
-        --cpu=1 `
-        --timeout=300 `
-        --max-instances=5 `
-        --min-instances=0 `
-        --set-env-vars="API_URL=${ApiUrl}" `
-        --labels="${RESOURCE_LABEL},${RESOURCE_LABEL_DATE}" `
-        --quiet | Out-Null
+    Log "Service: $SERVICE_NAME"
+    Log "Image: $IMAGE"
     
-    # Get the service URL
-    $STREAMLIT_URL = gcloud run services describe $SERVICE_NAME `
-        --region=$REGION `
-        --project=$PROJECT_ID `
-        --format="value(status.url)"
+    # Create env vars file in YAML format
+    $envFile = [System.IO.Path]::GetTempFileName() + ".yaml"
+    $envContent = "API_URL: $ApiUrl"
+    [System.IO.File]::WriteAllText($envFile, $envContent, [System.Text.Encoding]::UTF8)
     
-    Write-Info "Streamlit UI deployed: $STREAMLIT_URL"
-    return $STREAMLIT_URL
+    Log "Deploying service (this may take 2-5 minutes)..."
+    
+    # Use argument array
+    $args = @(
+        "run", "deploy", $SERVICE_NAME,
+        "--image=$IMAGE",
+        "--platform=managed",
+        "--region=$REGION",
+        "--project=$PROJECT_ID",
+        "--allow-unauthenticated",
+        "--memory=1Gi",
+        "--cpu=1",
+        "--timeout=300",
+        "--max-instances=5",
+        "--min-instances=0",
+        "--env-vars-file=$envFile"
+    )
+    
+    & gcloud $args
+    
+    $deployExitCode = $LASTEXITCODE
+    Remove-Item $envFile -ErrorAction SilentlyContinue
+    
+    if ($deployExitCode -ne 0) {
+        Log-Error "UI deployment failed with exit code: $deployExitCode"
+        exit 1
+    }
+    
+    Log "Deployment completed successfully!"
+    
+    Log "Retrieving UI service URL..."
+    $UI_URL = gcloud run services describe $SERVICE_NAME --region=$REGION --project=$PROJECT_ID --format="value(status.url)" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Log-Warn "Could not retrieve UI URL"
+        $UI_URL = ""
+    } else {
+        $UI_URL = $UI_URL.Trim()
+        if ([string]::IsNullOrEmpty($UI_URL)) {
+            Log-Warn "UI URL is empty"
+        } else {
+            Log "UI deployed: $UI_URL"
+        }
+    }
+    return $UI_URL
 }
 
-# Main deployment flow
-Write-Info "=========================================="
-Write-Info "GCP Deployment for CTR Prediction System"
-Write-Info "=========================================="
-Write-Info ""
-Write-Info "Project ID: $PROJECT_ID"
-Write-Info "Region: $REGION"
-Write-Info "Resource Prefix: $RESOURCE_PREFIX"
-Write-Info ""
+function Get-ServiceUrl {
+    param([string]$ServiceName)
+    
+    $url = gcloud run services describe $ServiceName --region=$REGION --project=$PROJECT_ID --format="value(status.url)" 2>&1
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($url)) {
+        return $url.Trim()
+    }
+    
+    return ""
+}
+
+function Upload-Models {
+    param([string]$BucketName)
+    
+    Log "Uploading models to Cloud Storage..."
+    
+    if (-not (Test-Path "models")) {
+        Log-Warn "Models directory not found. Skipping model upload."
+        Log "  Create models first by running: python scripts/train_models.py"
+        return
+    }
+    
+    $modelFiles = Get-ChildItem -Path "models" -Filter "*.pkl" -ErrorAction SilentlyContinue
+    if ($modelFiles.Count -eq 0) {
+        Log-Warn "No model files found in models/ directory. Skipping model upload."
+        return
+    }
+    
+    foreach ($file in $modelFiles) {
+        Log "  Uploading $($file.Name)..."
+        gsutil -q cp "models/$($file.Name)" "gs://${BucketName}/"
+        if ($LASTEXITCODE -ne 0) {
+            Log-Warn "  Failed to upload $($file.Name)"
+        }
+    }
+    
+    Log "Models uploaded to gs://${BucketName}/"
+}
+
+# Parse command-line arguments
+$PREPARE_ONLY = $false
+if ($args -contains "--prepare-only" -or $args -contains "-p") {
+    $PREPARE_ONLY = $true
+}
+
+# Main
+Log "=========================================="
+Log "GCP Deployment for CTR Prediction System"
+Log "=========================================="
 
 Check-Prerequisites
-
-# Create storage bucket
 $BUCKET_NAME = Create-StorageBucket
-
-# Build and push images
+Upload-Models $BUCKET_NAME
 $ARTIFACT_REGISTRY = Build-AndPushImages
 
-# Deploy API service
+if ($PREPARE_ONLY) {
+    Log ""
+    Log "=========================================="
+    Log "Artifacts Prepared - Ready for Console Deployment"
+    Log "=========================================="
+    Log ""
+    Log "Images pushed to Artifact Registry:"
+    Log "  API Image: ${ARTIFACT_REGISTRY}/api:latest"
+    Log "  Streamlit Image: ${ARTIFACT_REGISTRY}/streamlit:latest"
+    Log ""
+    Log "Models uploaded to:"
+    Log "  gs://${BUCKET_NAME}/"
+    Log ""
+    Log "=========================================="
+    Log "Deploy via Google Cloud Console:"
+    Log "=========================================="
+    Log ""
+    Log "1. Go to: https://console.cloud.google.com/run?project=${PROJECT_ID}"
+    Log ""
+    Log "2. Click 'CREATE SERVICE'"
+    Log ""
+    Log "3. For API Service:"
+    Log "   - Service name: ${RESOURCE_PREFIX}-api"
+    Log "   - Container image URL: ${ARTIFACT_REGISTRY}/api:latest"
+    Log "   - Region: $REGION"
+    Log "   - Allow unauthenticated invocations: Yes"
+    Log "   - Memory: 2 GiB"
+    Log "   - CPU: 2"
+    Log "   - Timeout: 300 seconds"
+    Log "   - Max instances: 10"
+    Log "   - Environment variables:"
+    Log "     * MODELS_DIR = /tmp/models"
+    Log "     * GCP_PROJECT_ID = $PROJECT_ID"
+    Log "     * GCS_BUCKET = $BUCKET_NAME"
+    Log ""
+    Log "4. For Streamlit UI Service (after API is deployed):"
+    Log "   - Service name: ${RESOURCE_PREFIX}-ui"
+    Log "   - Container image URL: ${ARTIFACT_REGISTRY}/streamlit:latest"
+    Log "   - Region: $REGION"
+    Log "   - Allow unauthenticated invocations: Yes"
+    Log "   - Memory: 1 GiB"
+    Log "   - CPU: 1"
+    Log "   - Timeout: 300 seconds"
+    Log "   - Max instances: 5"
+    Log "   - Environment variables:"
+    Log "     * API_URL = <API_SERVICE_URL> (get from API service after deployment)"
+    Log ""
+    Log "=========================================="
+    exit 0
+}
+
+# Full deployment
 $API_URL = Deploy-ApiService $ARTIFACT_REGISTRY $BUCKET_NAME
+$UI_URL = Deploy-StreamlitService $ARTIFACT_REGISTRY $API_URL
 
-# Deploy Streamlit service
-$STREAMLIT_URL = Deploy-StreamlitService $ARTIFACT_REGISTRY $API_URL
+# Try to get URLs again if they're empty
+if ([string]::IsNullOrEmpty($API_URL)) {
+    Log "Retrieving API URL..."
+    $API_URL = Get-ServiceUrl "${RESOURCE_PREFIX}-api"
+}
+if ([string]::IsNullOrEmpty($UI_URL)) {
+    Log "Retrieving UI URL..."
+    $UI_URL = Get-ServiceUrl "${RESOURCE_PREFIX}-ui"
+}
 
-Write-Info ""
-Write-Info "=========================================="
-Write-Info "Deployment Complete!"
-Write-Info "=========================================="
-Write-Info ""
-Write-Info "API Service: $API_URL"
-Write-Info "API Docs: $API_URL/docs"
-Write-Info "Streamlit UI: $STREAMLIT_URL"
-Write-Info ""
-Write-Info "To clean up all resources, run:"
-Write-Info "  .\scripts\gcp_cleanup.ps1"
-Write-Info ""
-
+Log ""
+Log "=========================================="
+Log "Deployment Complete!"
+Log "=========================================="
+if (-not [string]::IsNullOrEmpty($API_URL)) {
+    Log "API Service: $API_URL"
+    Log "API Docs: ${API_URL}/docs"
+} else {
+    Log "API Service: (URL not available)"
+    Log "  Run: gcloud run services describe ${RESOURCE_PREFIX}-api --region=$REGION --project=$PROJECT_ID --format='value(status.url)'"
+}
+if (-not [string]::IsNullOrEmpty($UI_URL)) {
+    Log "Streamlit UI: $UI_URL"
+} else {
+    Log "Streamlit UI: (URL not available)"
+    Log "  Run: gcloud run services describe ${RESOURCE_PREFIX}-ui --region=$REGION --project=$PROJECT_ID --format='value(status.url)'"
+}
+Log ""
+Log "To list all services:"
+Log "  gcloud run services list --region=$REGION --project=$PROJECT_ID"
+Log "=========================================="

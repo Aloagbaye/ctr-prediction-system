@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/aloag/personal-study/ctr-prediction-system/mlruns/287816293310768462/cc53e192fe374411935309dba6cf4d41/artifacts
+end_time: 1766365907690
+entry_point_name: ''
+experiment_id: '287816293310768462'
+lifecycle_stage: active
+run_id: cc53e192fe374411935309dba6cf4d41
+run_name: LogisticRegression_iris_test
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1766365882668
+status: 3
+tags: []
+user_id: aloag

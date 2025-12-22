@@ -1,0 +1,22 @@
+{
+  "test_logistic_vs_xgboost_1766367832": {
+    "test_id": "test_logistic_vs_xgboost_1766367832",
+    "model_a": "logistic",
+    "model_b": "xgboost",
+    "traffic_split": 0.5,
+    "start_time": "2025-12-21T20:43:54.237024",
+    "end_time": null,
+    "enabled": true,
+    "description": "Compare logistic vs xgboost performance"
+  },
+  "test_logistic_vs_xgboost_1766369032": {
+    "test_id": "test_logistic_vs_xgboost_1766369032",
+    "model_a": "logistic",
+    "model_b": "xgboost",
+    "traffic_split": 0.5,
+    "start_time": "2025-12-21T21:03:54.818424",
+    "end_time": null,
+    "enabled": true,
+    "description": "Compare logistic vs xgboost performance"
+  }
+}
